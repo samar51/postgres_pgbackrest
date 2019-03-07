@@ -1,0 +1,61 @@
+This docker swarm stack will create 2 postgres instance with high avaiblity using PATRONI,and one postgres backup with PGBACKREST.
+with cron job FULL BACKUP are scheduled for 6:30 AM every Sunday.
+              DIFFRENTIAL BACKUPS scheduled for 6:30 AM Monday through Saturday. 
+
+Steps for creating postgres high avaibilty with backup:
+
+1.install docker swarm in ubuntu(16.04)
+   apt-get install docker-io
+2.Initialize docker swarm
+   docker swarm init
+3.Join the nodes to swarm  manager   
+4.Create overlay network
+   docker network create -d overlay dbs
+5.Join the nodes to swarm  manager
+ Run the command  for getting the tocken for worker noded: docker swarm join-token worker 
+ and Than join the worker nodes 
+
+6.***** IMPORTANT
+   Create ssh keys for 3 diffrent user and use as private,public and authorization in the config directory for docker 
+   containers internal ssh communication between postgres docker instance and pgbackrest for proper backup;
+
+7.Create label for all the node:
+   docker node ls
+   exmaple:
+   docker node update --label-add type9=etcd0 node_id from (docker node ls) command
+   docker node update --label-add type9=etcd1 node_id from (docker node ls) command
+   docker node update --label-add type9=etcd2 node_id from (docker node ls) command
+   docker node update --label-add type11=haproxy node_id from (docker node ls) command
+   docker node update --label-add type8=backup node_id from (docker node ls) command
+   docker node update --label-add type7=dbnode1 node_id from (docker node ls) command
+   docker node update --label-add type7=dbnode2 node_id from (docker node ls) command
+   
+   labels:
+   type9 == etcd0
+   type9 == etcd1
+   type9 == etcd2
+   type11 == haproxy
+   type8 == backup
+   type7 == dbnode1
+   type7 == dbnode2
+   
+8. Create docker image with the name pgbackrest(postgresbacku/Dockerfile) from the docker file ,patroni(patroni_postgres/Dockerfile),
+   in all the machines as machines or else store it in repository common base.
+   
+9. Run the etcd stack first.
+
+   docker stack deploy -c etcd/etcd-cluster.yml etcd_cluster_stack
+   
+   login to etcd container to check the health
+   docker exec -it etcdcontainer sh
+   etcdctl  cluster-health
+   
+   and than patroni pgbackrest stack
+   docker stack deploy -c patroni_pgbackrest_stack.yml patroni_pgbackrest_stack
+   login to dbnode container abd check patroni
+   docker exec -it dbnodecontainer bash
+   patronictl list
+   
+10. Docker stack ls
+11.docker stack ps patroni_ogbackrest_stack
+   docker stack ps etcd_cluster_stack 
