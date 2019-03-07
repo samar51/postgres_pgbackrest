@@ -1,0 +1,17 @@
+stages:
+  - deploy
+
+deploy:stage:
+  stage: deploy
+  before_script:
+     - docker login -u gitlab-ci-token -p $CI_BUILD_TOKEN $CI_REGISTRY
+  script:
+     - docker stack deploy --compose-file=docker-stack.prod.yml pg-patroni-stack --with-registry-auth
+     - sleep 60
+  only:
+     - development
+  tags:
+    - manager-swarm
+  when: manual    
+     
+

@@ -1,0 +1,3 @@
+* * * * * su pgbackrest -c date>/home/pgbackrest/cron-test
+30 06 * * 1-6 su pgbackrest -c "pgbackrest --type=diff --stanza=demo backup"
+30 06 * * 0 su pgbackrest -c "pgbackrest --type=full --stanza=demo backup"

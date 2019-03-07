@@ -1,0 +1,20 @@
+bootstrap:
+  dcs:
+    postgresql:
+      use_pg_rewind: true
+      parameters:
+         archive_mode: "on"
+         archive_command: pgbackrest --stanza=demo archive-push %p
+         max_connections: '400'
+         max_wal_senders: '4'
+         wal_keep_segments: '128'
+         archive_timeout: 1800s
+         max_replication_slots: '4'
+      recovery_conf:
+         restore_command: pgbackrest --stanza=demo archive-get %f "%p"
+      callbacks:
+        on_role_change: /home/postgres/takebackup.sh
+  pg_hba:
+    - host all all 0.0.0.0/0 md5
+    - host replication replicator 10.0.0.0/8 md5
+

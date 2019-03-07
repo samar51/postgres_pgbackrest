@@ -1,0 +1,1 @@
+30 06 * * 1-6 su pgbackrest -c "pgbackrest --type=diff --stanza=demo backup"

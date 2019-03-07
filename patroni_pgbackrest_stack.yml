@@ -1,0 +1,218 @@
+version: '3.3'
+services:
+
+  haproxy:
+    image: haproxy:alpine
+    ports:
+        - "5000:5000"
+        - "5001:5001"
+        - "8008:8008"
+    configs:
+      - haproxy_cfg
+    networks:
+      - dbs
+    command: haproxy -f /haproxy_cfg
+    deploy:
+      placement:
+        constraints:
+        - node.labels.type11 == haproxy
+      replicas: 1
+
+    
+
+  pgbackrest:
+    image: pgbackrest
+    hostname: pgbackrestHost
+    ports:
+        - "2225:22"
+
+    secrets:
+      - source: id_rsa_pgbackrestHost
+        target: /home/pgbackrest/.ssh/id_rsa
+        mode:   0600
+        uid:    '1000'
+        gid:    '1000'
+      - source: id_rsa.pub_pgbackrestHost
+        target: /home/pgbackrest/.ssh/id_rsa.pub
+        mode:   0644
+        uid:    '1000'
+        gid:    '1000'
+      - source: authorized_keys_pgbackrestHost
+        target: /home/pgbackrest/.ssh/authorized_keys
+        mode:   0664
+        uid:    '1000'
+        gid:    '1000'
+    configs:
+      - source: pgbackrest_config
+        target: /etc/pgbackrest/pgbackrest.conf
+        mode:   0640
+        uid:    '1000'
+        gid:    '1000'
+      - source: ssh_config
+        target: /home/pgbackrest/.ssh/config
+        mode:   0664
+        uid:    '1000'
+        gid:    '1000'
+    env_file:
+      - prod.env
+    networks:
+      - dbs
+    volumes:
+      - "/data/postgresbackup/pgbackupdata/:/var/lib/pgbackrest/"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.type8 == backup
+
+
+  dbnode1:
+    image: patroni
+    hostname: dbnode1
+    environment:
+      - PATRONI_NAME=dbnode1
+      - PATRONI_POSTGRESQL_DATA_DIR=data/dbnode1
+      - PATRONI_POSTGRESQL_CONNECT_ADDRESS=dbnode1:5432
+      - PATRONI_RESTAPI_CONNECT_ADDRESS=dbnode1:8008
+    secrets:
+      - patroni.yml
+      - source: id_rsa_dbnode1
+        target: /var/lib/postgresql/.ssh/id_rsa
+        mode:   0600
+        uid:    '999'
+        gid:    '999'
+      - source: id_rsa.pub_dbnode1
+        target: /var/lib/postgresql/.ssh/id_rsa.pub
+        mode:   0644
+        uid:    '999'
+        gid:    '999'
+      - source: authorized_keys_dbnode1
+        target: /var/lib/postgresql/.ssh/authorized_keys
+        mode:   0664
+        uid:    '999'
+        gid:    '999'
+    configs:
+      - source: ssh_config
+        target: /var/lib/postgresql/.ssh/config
+        mode:   0664
+        uid:    '999'
+        gid:    '999'
+      - source: pgbackrest.dbnode1.conf
+        target: /etc/pgbackrest/pgbackrest.conf
+        mode:   0640
+        uid:    '999'
+        gid:    '999'
+      - source: callback
+        target: /home/postgres/takebackup.sh
+        mode:   0755
+        uid:    '999'
+        gid:    '999'
+
+    env_file:
+      - prod1.env
+    networks:
+      - dbs
+    volumes:
+      - "/data/postgresData/dbdata1:/data"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.type7 == dbnode1
+
+  dbnode2:
+    image: potroni
+    hostname: dbnode2
+    environment:
+      - PATRONI_NAME=dbnode2
+      - PATRONI_POSTGRESQL_DATA_DIR=data/dbnode2
+      - PATRONI_POSTGRESQL_CONNECT_ADDRESS=dbnode2:5432
+      - PATRONI_RESTAPI_CONNECT_ADDRESS=dbnode2:8008
+    secrets:
+      - patroni.yml
+      - source: id_rsa_dbnode2
+        target: /var/lib/postgresql/.ssh/id_rsa
+        mode:   0600
+        uid:    '999'
+        gid:    '999'
+      - source: id_rsa.pub_dbnode2
+        target: /var/lib/postgresql/.ssh/id_rsa.pub
+        mode:   0644
+        uid:    '999'
+        gid:    '999'
+      - source: authorized_keys_dbnode2
+        target: /var/lib/postgresql/.ssh/authorized_keys
+        mode:   0664
+        uid:    '999'
+        gid:    '999'
+    configs:
+      - source: ssh_config
+        target: /var/lib/postgresql/.ssh/config
+        mode:   0664
+        uid:    '999'
+        gid:    '999'
+      - source: pgbackrest.dbnode2.conf
+        target: /etc/pgbackrest/pgbackrest.conf
+        mode:   0640
+        uid:    '999'
+        gid:    '999'
+
+      - source: callback
+        target: /home/postgres/takebackup.sh
+        mode:   0755
+        uid:    '999'
+        gid:    '999'
+    env_file:
+      - prod2.env
+    networks:
+      - dbs
+    #entrypoint: patroni
+    #command: /run/secrets/patroni.yml
+    volumes:
+      - "/data/postgresData/dbdata2/:/data"
+    deploy:
+      placement:
+        constraints:
+          - node.labels.type7 == dbnode2
+
+
+networks:
+  dbs:
+    external: true
+
+configs:
+  haproxy_cfg:
+    file: config/haproxy.cfg
+  etcd_cfg:
+    file: config/etcd.sh
+  pgbackrest_config:
+    file: config/pgbackrest.conf
+  ssh_config:
+    file: config/config
+  pgbackrest.dbnode2.conf:
+    file: config/pgbackrest.dbnode2.conf
+  pgbackrest.dbnode1.conf:
+    file: config/pgbackrest.dbnode1.conf
+  callback:
+    file: callbacks/takebackup.sh
+
+
+secrets:
+  patroni.yml:
+    file: patroni.prod.yml
+  id_rsa_dbnode1:
+    file: config/id_rsa_dbnode1
+  id_rsa.pub_dbnode1:
+    file: config/id_rsa_dbnode1
+  id_rsa_dbnode2:
+    file: config/id_rsa_dbnode2
+  id_rsa.pub_dbnode2:
+    file: config/id_rsa.pub_dbnode2
+  authorized_keys_dbnode1:
+    file: config/authorized_keys_dbnode1
+  authorized_keys_dbnode2:
+    file: config/authorized_keys_dbnode2
+  id_rsa_pgbackrestHost:
+    file: config/id_rsa_pgbackrestHost
+  id_rsa.pub_pgbackrestHost:
+    file: config/id_rsa.pub_pgbackrestHost
+  authorized_keys_pgbackrestHost:
+    file: config/authorized_keys_pgbackrestHost

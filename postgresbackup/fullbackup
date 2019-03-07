@@ -1,0 +1,1 @@
+30 06 * * 0 su pgbackrest -c "pgbackrest --type=full --stanza=demo backup"
